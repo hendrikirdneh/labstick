@@ -36,7 +36,7 @@ docker run -it \
   -v ~/Documents/lab-work:/home/lab/work \
   -v ~/.ssh:/home/lab/.ssh:ro \
   -p 8888:8888 \
-  ghcr.io/rommeswi/labstick-orbstack-arm64:main
+  ghcr.io/hendrikirdneh/labstick-orbstack-arm64:main
 ```
 
 **Intel Mac:**
@@ -46,7 +46,7 @@ docker run -it \
   -v ~/Documents/lab-work:/home/lab/work \
   -v ~/.ssh:/home/lab/.ssh:ro \
   -p 8888:8888 \
-  ghcr.io/rommeswi/labstick-orbstack-amd64:main
+  ghcr.io/hendrikirdneh/labstick-orbstack-amd64:main
 ```
 
 This will:
@@ -150,7 +150,7 @@ When a new version of the image is released:
 
 ```bash
 # Download the latest image
-docker pull ghcr.io/rommeswi/labstick-orbstack-arm64:main   # or amd64
+docker pull ghcr.io/hendrikirdneh/labstick-orbstack-arm64:main   # or amd64
 
 # Remove the old container (your files in ~/Documents/lab-work are safe)
 docker rm -f labstick
