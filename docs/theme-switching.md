@@ -17,7 +17,7 @@ All four apps — GNOME Shell, kitty, Neovim, Emacs — switch atomically each t
 
 ## The `theme-switch` Script
 
-**Location:** `/usr/local/bin/theme-switch`
+**Location:** `/usr/bin/theme-switch`
 
 ```
 theme-switch [day|night|auto]
@@ -319,7 +319,7 @@ Wallpapers are committed rather than downloaded during the build. The build-time
 
 | Path | Role |
 |------|------|
-| `/usr/local/bin/theme-switch` | Main orchestration script |
+| `/usr/bin/theme-switch` | Main orchestration script |
 | `~/.config/systemd/user/theme-day.timer` | Fires at 08:00 |
 | `~/.config/systemd/user/theme-night.timer` | Fires at 20:00 |
 | `~/.config/systemd/user/theme-startup.service` | Fires on graphical session start |

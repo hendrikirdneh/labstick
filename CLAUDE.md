@@ -32,11 +32,28 @@ Modules are wired into `recipe.yml` under `type: includes` entries. New custom m
 
 ## Key Architecture Points
 
-- **Base image**: `ghcr.io/vanilla-os/desktop:main` (swap to `nvidia:main` for NVIDIA GPU support)
+- **Base image**: `ghcr.io/vanilla-os/gnome:latest` (swap to `nvidia:latest` for NVIDIA GPU support)
 - **lpkg lock/unlock**: The `init-setup` module unlocks `lpkg` (Vanilla OS's package manager guard) before apt operations; `cleanup` re-locks it. All apt installs must happen between these.
 - **fsguard**: The `fsguard` module at the end generates a filesystem integrity key for `/usr/bin`. This is always the second-to-last step.
 - **`includes.container/usr/share/abroot/`**: Contains the ABRoot configuration — this controls what image URL Vanilla OS will pull during `abroot upgrade`.
 - **`includes.container/vanilla-first-setup/`**: Controls the first-run setup wizard shown to new users.
+
+## Never Install Into /usr/local or /opt
+
+ABRoot's root-integrity repair (`core/integrity.go`, run both when a root is deployed and
+on every boot from `abroot mount-sys`) replaces `/usr/local` with a symlink to
+`/var/usrlocal` and `/opt` with a symlink to `/var/opt`, deleting whatever the image put
+there. Anything installed into those paths is gone the first time the new root boots, and
+the failure looks like a missing command rather than a build error.
+
+Install into `/usr/bin`, `/usr/lib` and `/usr/share` instead. This applies to third-party
+installers as well: pass `-d /usr/bin` to the oh-my-posh script, `--prefix /usr` to
+`npm install -g`, and `UV_TOOL_DIR=/usr/share/uv-tools UV_TOOL_BIN_DIR=/usr/bin` to `uv tool
+install`. `includes.container/` files follow the same rule — put them under
+`includes.container/usr/bin/` and `includes.container/usr/share/`.
+
+`Dockerfile.orbstack` is exempt: it builds a plain Ubuntu container that ABRoot never
+touches.
 
 ## Live System Constraints
 
@@ -48,7 +65,7 @@ The deployed Vanilla OS instance running this repository is **immutable** (manag
 - To add dotfiles/configs: place them under `includes.container/` at the target path.
 - To add a new feature module: create `modules/<name>/install.yml` + `config.yml`, then reference them in `recipe.yml`.
 - To install `.deb` files directly: place them in `includes.container/deb-pkgs/`.
-- NVIDIA drivers: change `desktop:main` to `nvidia:main` in `recipe.yml` line 5.
+- NVIDIA drivers: change `gnome:latest` to `nvidia:latest` in `recipe.yml` line 5.
 
 ## Pinned Third-Party Sources
 

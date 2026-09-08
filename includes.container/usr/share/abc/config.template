@@ -1,6 +1,6 @@
 # abc configuration. Copy to ~/.config/abc/config and chmod 600.
 #
-#   install -Dm600 /usr/local/share/abc/config.template ~/.config/abc/config
+#   install -Dm600 /usr/share/abc/config.template ~/.config/abc/config
 #
 # The file holds an API key in plaintext, so keep it mode 600.
 

@@ -3,4 +3,4 @@ Description=Switch to night (dark) theme
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/theme-switch night
+ExecStart=/usr/bin/theme-switch night

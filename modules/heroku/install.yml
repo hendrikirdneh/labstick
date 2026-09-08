@@ -1,5 +1,5 @@
 name: heroku-install
 type: shell
 commands:
-- npm install -g heroku
+- npm install -g --prefix /usr heroku
 - npm cache clean --force

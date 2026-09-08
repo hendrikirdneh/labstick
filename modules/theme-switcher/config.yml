@@ -2,7 +2,7 @@ name: theme-switcher
 type: shell
 commands:
   - cp -rf /theme-switcher/etc/skel/. /etc/skel/
-  - chmod +x /usr/local/bin/theme-switch
+  - chmod +x /usr/bin/theme-switch
   # Active copies start on the dark theme; theme-switch replaces them per mode
   - cp /etc/skel/.config/kitty/tokyonight.conf /etc/skel/.config/kitty/current-theme.conf
   - cp /etc/skel/.config/oh-my-posh/config-night.json /etc/skel/.config/oh-my-posh/config.json

@@ -8,7 +8,7 @@ commands:
 - mkdir -p /etc/skel/
 - cp -rf /shell/etc/skel/. /etc/skel/
 # Oh my posh installation
-- curl -s https://ohmyposh.dev/install.sh | bash -s -- -d /usr/local/bin
+- curl -s https://ohmyposh.dev/install.sh | bash -s -- -d /usr/bin
 # oh-my-posh configuration
 - mkdir -p /etc/skel/.config/oh-my-posh/themes
 - cp -r /root/.cache/oh-my-posh/themes /etc/skel/.config/oh-my-posh/themes

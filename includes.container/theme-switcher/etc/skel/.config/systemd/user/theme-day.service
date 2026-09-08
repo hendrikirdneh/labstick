@@ -3,4 +3,4 @@ Description=Switch to day (light) theme
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/theme-switch day
+ExecStart=/usr/bin/theme-switch day

@@ -22,7 +22,7 @@ alias cat='batcat'
 eval "$(zoxide init zsh)"
 source /usr/share/doc/fzf/examples/key-bindings.zsh
 
-[[ -f /usr/local/share/abc/abc.sh ]] && source /usr/local/share/abc/abc.sh
+[[ -f /usr/share/abc/abc.sh ]] && source /usr/share/abc/abc.sh
 
 # vib-tip keybindings (only active at the zsh prompt)
 _vib_dismiss()     { zle -I; vib-tip dismiss; }
@@ -32,4 +32,4 @@ zle -N _vib_unsubscribe
 bindkey '^Xd' _vib_dismiss
 bindkey '^Xu' _vib_unsubscribe
 
-[[ $SHLVL -eq 1 && -x /usr/local/bin/vib-tip ]] && vib-tip show
+[[ $SHLVL -eq 1 && -x /usr/bin/vib-tip ]] && vib-tip show

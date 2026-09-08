@@ -103,11 +103,11 @@ RUN if [ "$TARGETARCH" = "arm64" ]; then \
        fi
 
 # ── vib-tip ───────────────────────────────────────────────────────────────────
-COPY includes.container/usr/local/bin/vib-tip /usr/local/bin/vib-tip
-COPY includes.container/usr/local/share/vib/ /usr/local/share/vib/
+COPY includes.container/usr/bin/vib-tip /usr/bin/vib-tip
+COPY includes.container/usr/share/vib/ /usr/share/vib/
 
 # ── nerd fonts ────────────────────────────────────────────────────────────────
-RUN mkdir -p /usr/local/share/fonts /nerdfonts
+RUN mkdir -p /usr/share/fonts /nerdfonts
 COPY includes.container/nerdfonts/nerdfont-install.sh /tmp/nerdfont-install.sh
 RUN bash /tmp/nerdfont-install.sh && rm /tmp/nerdfont-install.sh
 

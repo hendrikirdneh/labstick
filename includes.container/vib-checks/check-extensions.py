@@ -25,7 +25,6 @@ import sys
 
 EXTENSION_DIRS = [
     pathlib.Path("/usr/share/gnome-shell/extensions"),
-    pathlib.Path("/usr/local/share/gnome-shell/extensions"),
 ]
 DCONF_DEFAULTS = pathlib.Path("/etc/dconf/db/local.d/00-lab-defaults")
 
