@@ -1,29 +1,24 @@
 name: zerotier-install
 type: shell
 commands:
-- cd /tmp
-- git clone https://github.com/zerotier/ZeroTierOne.git /tmp/zerotier
-- cd /tmp/zerotier
-- make -f make-linux.mk
-- make -f make-linux.mk install
-- cd /tmp
-- rm -r zerotier
-- apt-get purge -y build-essential clang cargo pkg-config libssl-dev libminiupnpc-dev libnatpmp-dev
-- apt-get autoremove -y
-- apt-get install -y libminiupnpc21 libnatpmp1t64
+# Pinned .deb from ZeroTier's own trixie repository, verified by checksum.
+# Compiling from source cost about 190s of every image build -- a third of the
+# whole run -- and pulled build-essential, clang and cargo in only to purge them
+# again. Bump ZEROTIER_VERSION and ZEROTIER_SHA256 together; the checksum is the
+# only thing making an unsigned download reproducible, so never drop it. Current
+# versions and their hashes are listed in
+# https://download.zerotier.com/debian/trixie/dists/trixie/main/binary-amd64/Packages
+- ZEROTIER_VERSION=1.16.2
+- ZEROTIER_SHA256=75589dbdc989546629e8676b186b1e7854b3fa3b5dac061b93f8c8e427af2b13
+- curl -fsSL -o /tmp/zerotier-one.deb "https://download.zerotier.com/debian/trixie/pool/main/z/zerotier-one/zerotier-one_${ZEROTIER_VERSION}_amd64.deb"
+- echo "${ZEROTIER_SHA256}  /tmp/zerotier-one.deb" | sha256sum -c -
+- apt-get install -y /tmp/zerotier-one.deb
+- rm -f /tmp/zerotier-one.deb
 - apt-get clean
-- rm -rf /root/.cargo /root/.rustup
 modules:
-- name: make-deps
+- name: zerotier-requirements
   type: apt
   source:
     packages:
-    - build-essential
-    - clang
-    - git
-    - cargo
-    - pkg-config
-    - openssl
-    - libssl-dev
-    - libminiupnpc-dev
-    - libnatpmp-dev
+    - curl
+    - ca-certificates

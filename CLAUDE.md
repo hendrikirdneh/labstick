@@ -101,6 +101,12 @@ no artifacts to them, so a clone is the only route. Check for updates and review
 before bumping, as above; PaperWM hooks deeply into window management, so pay attention to
 changes in keybinding registration and in what it does to `enabled-extensions`.
 
+`modules/zerotier/install.yml` installs a pinned `.deb` from ZeroTier's own trixie
+repository, verified against `ZEROTIER_SHA256`. The download is unsigned, so the checksum is
+the only thing tying the build to a known artifact -- bump the version and the hash together
+and never drop the hash. New versions and their hashes are listed in
+`https://download.zerotier.com/debian/trixie/dists/trixie/main/binary-amd64/Packages`.
+
 Apply the same discipline to any other module installing from a VCS ref rather than a
 versioned artifact.
 
