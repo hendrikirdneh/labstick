@@ -32,11 +32,32 @@ Modules are wired into `recipe.yml` under `type: includes` entries. New custom m
 
 ## Key Architecture Points
 
-- **Base image**: `ghcr.io/vanilla-os/desktop:main` (swap to `nvidia:main` for NVIDIA GPU support)
+- **Base image**: `ghcr.io/vanilla-os/gnome:latest` (swap to `nvidia:latest` for NVIDIA GPU support)
 - **lpkg lock/unlock**: The `init-setup` module unlocks `lpkg` (Vanilla OS's package manager guard) before apt operations; `cleanup` re-locks it. All apt installs must happen between these.
 - **fsguard**: The `fsguard` module at the end generates a filesystem integrity key for `/usr/bin`. This is always the second-to-last step.
 - **`includes.container/usr/share/abroot/`**: Contains the ABRoot configuration — this controls what image URL Vanilla OS will pull during `abroot upgrade`.
 - **`includes.container/vanilla-first-setup/`**: Controls the first-run setup wizard shown to new users.
+
+## Never Install Into /usr/local or /opt
+
+ABRoot's root-integrity repair (`core/integrity.go`, run both when a root is deployed and
+on every boot from `abroot mount-sys`) replaces `/usr/local` with a symlink to
+`/var/usrlocal` and `/opt` with a symlink to `/var/opt`, deleting whatever the image put
+there. Anything installed into those paths is gone the first time the new root boots, and
+the failure looks like a missing command rather than a build error.
+
+Install into `/usr/bin`, `/usr/lib` and `/usr/share` instead. This applies to third-party
+installers as well: pass `-d /usr/bin` to the oh-my-posh script, `--prefix /usr` to
+`npm install -g`, and `UV_TOOL_DIR=/usr/share/uv-tools UV_TOOL_BIN_DIR=/usr/bin` to `uv tool
+install`. `includes.container/` files follow the same rule — put them under
+`includes.container/usr/bin/` and `includes.container/usr/share/`.
+
+`Dockerfile.orbstack` is exempt: it builds a plain Ubuntu container that ABRoot never
+touches.
+
+## Live System Constraints
+
+The deployed Vanilla OS instance running this repository is **immutable** (managed by ABRoot). The root filesystem is read-only on the live system. Do not attempt to directly modify files under `/usr`, `/etc`, or other system paths on the running OS — those operations will fail or have no lasting effect. All changes must go through the vib image repository and take effect after the next image build and `abroot upgrade`.
 
 ## Modifying the Image
 
@@ -44,4 +65,73 @@ Modules are wired into `recipe.yml` under `type: includes` entries. New custom m
 - To add dotfiles/configs: place them under `includes.container/` at the target path.
 - To add a new feature module: create `modules/<name>/install.yml` + `config.yml`, then reference them in `recipe.yml`.
 - To install `.deb` files directly: place them in `includes.container/deb-pkgs/`.
-- NVIDIA drivers: change `desktop:main` to `nvidia:main` in `recipe.yml` line 5.
+- NVIDIA drivers: change `gnome:latest` to `nvidia:latest` in `recipe.yml` line 5.
+
+## Pinned Third-Party Sources
+
+`modules/abc/install.yml` installs [alestic/abc](https://github.com/alestic/abc) from a
+pinned commit (`ABC_REF`). The project publishes no releases, tags, or PyPI package, so the
+pin is the only thing keeping image contents reproducible. Never change `ABC_REF` to a branch
+name, and never leave it unpinned.
+
+When asked to check for updates — and proactively whenever working in this repository after a
+gap of a month or more — do the following:
+
+1. `git ls-remote https://github.com/alestic/abc.git HEAD` and compare against `ABC_REF`.
+2. If it moved, review the actual diff before bumping:
+   `git clone` the repo and `git log --oneline <ABC_REF>..HEAD`, then
+   `git diff <ABC_REF>..HEAD` over `abc_cli/` and `abc_provider_anthropic/`.
+3. Run a safety check on the new code and report findings before changing the pin. Look for:
+   - new `subprocess`, `os.system`, `eval`, or `exec` calls in the Python (there are none at
+     the pinned commit; any addition is worth explaining)
+   - changes to `abc_cli/abc.sh`, which runs inside the user's interactive shell and ends in
+     `eval "$user_cmd"` — in particular anything that shortens the path between LLM output and
+     that `eval`, or that removes the typeahead flush guarding it
+   - changes to `process_generated_command` in `abc_generate.py`, which neutralizes
+     high-danger commands by commenting them out
+   - new network egress beyond the configured LLM provider's own API, and any telemetry
+   - anything reading `~/.config/abc/config`, which holds an API key in plaintext, or
+     weakening its mode 600
+4. Only bump `ABC_REF` after reporting what changed. If the diff contains anything from the
+   list above, say so and let the user decide rather than bumping.
+
+`modules/paperwm/install.yml` installs [paperwm/PaperWM](https://github.com/paperwm/PaperWM)
+the same way, from a pinned commit (`PAPERWM_REF`). The project tags releases but attaches
+no artifacts to them, so a clone is the only route. Check for updates and review the diff
+before bumping, as above; PaperWM hooks deeply into window management, so pay attention to
+changes in keybinding registration and in what it does to `enabled-extensions`.
+
+`modules/zerotier/install.yml` installs a pinned `.deb` from ZeroTier's own trixie
+repository, verified against `ZEROTIER_SHA256`. The download is unsigned, so the checksum is
+the only thing tying the build to a known artifact -- bump the version and the hash together
+and never drop the hash. New versions and their hashes are listed in
+`https://download.zerotier.com/debian/trixie/dists/trixie/main/binary-amd64/Packages`.
+
+Apply the same discipline to any other module installing from a VCS ref rather than a
+versioned artifact.
+
+## GNOME Extensions
+
+Extensions live in three places and all three must agree:
+
+- installed into `/usr/share/gnome-shell/extensions/` — from the `gnome-shell-extensions`
+  deb, from `includes.container/gnome/extensions.yml` (GitHub release assets), or from a
+  module like `modules/paperwm/install.yml`
+- switched on in `enabled-extensions` in `includes.container/etc/dconf/db/local.d/00-lab-defaults`
+- compatible with the GNOME Shell the base image ships
+
+`modules/checks/extensions.yml` enforces the last two at build time. It runs
+`includes.container/vib-checks/check-extensions.py` after every module that installs an
+extension, and fails the build if any installed extension does not declare support for this
+GNOME Shell, or if `enabled-extensions` names a UUID that ships no files. Vib joins every
+recipe command with `&&`, so a non-zero exit stops the build and nothing is pushed.
+
+This exists because both failures happen without anyone editing this repository: the base
+image moves to a new GNOME Shell and strands every extension that has not been updated. When
+the build fails that way, update the extension, drop it from the image, or -- if shipping it
+broken is a deliberate choice -- add its UUID to `ALLOW_INCOMPATIBLE` in the script with a
+reason.
+
+Installing an extension does not enable it. Anything absent from `enabled-extensions` ships
+dormant, which is how PaperWM is set up. When removing an extension, remove it from both the
+filesystem and that list; the check catches the half-done case.

@@ -2,7 +2,7 @@ name: labstick
 id: labstick
 stages:
 - id: build
-  base: ghcr.io/vanilla-os/desktop:main # Optionally, Replace this image URL with a different one i.e. nvidia:main, etc
+  base: ghcr.io/vanilla-os/gnome:latest # Optionally, Replace this image URL with a different one i.e. nvidia:latest, etc
   singlelayer: true
   labels:
     maintainer: self-maintained # Optionally, Replace this with your name
@@ -12,7 +12,7 @@ stages:
   # Commands to run first before building the modules
   runs:
     commands:
-      - echo 'APT::Install-Recommends "1";' > /etc/apt/apt.conf.d/01norecommends
+      - echo 'APT::Install-Recommends "0";' > /etc/apt/apt.conf.d/01norecommends
 
   modules:
   - name: init-setup
@@ -20,6 +20,9 @@ stages:
     commands:
     - lpkg --unlock
     - apt-get update
+    # ABRoot replaces /usr/local and /opt with symlinks into /var when it
+    # deploys a root, so anything the image installs there is deleted on first
+    # boot. Everything below installs into /usr/bin, /usr/lib and /usr/share.
 
   # Put your custom actions behind this comment
 
@@ -41,6 +44,7 @@ stages:
     includes:
     - modules/shell/debs.yml
     - modules/shell/config.yml
+    - modules/shell/skel-sync.yml
 
 # Streaming and video recording (OBS, DaVinci Resolve)
 
@@ -70,6 +74,11 @@ stages:
     type: includes
     includes:
     - modules/theme-switcher/config.yml
+
+  - name: paperwm
+    type: includes
+    includes:
+    - modules/paperwm/install.yml
 
 # For using Logitech mice like MX Master
 
@@ -110,10 +119,39 @@ stages:
     type: shell
     commands:
     - apt-get install -y nodejs npm
-    - npm install -g @anthropic-ai/claude-code
+    - npm install -g --prefix /usr @anthropic-ai/claude-code
     - npm cache clean --force
+    # /usr is read-only on the deployed system, so the auto-updater can only
+    # ever fail and nag. The env var is read at startup and suppresses both the
+    # update attempt and the failure notice; /etc/claude-code/managed-settings.json
+    # (from includes.container) carries the same setting for shells that do not
+    # go through a PAM session.
+    - echo 'DISABLE_AUTOUPDATER=1' >> /etc/environment
+
+# Google Drive (GNOME 50 ships no Drive backend)
+
+  - name: gdrive
+    type: includes
+    includes:
+    - modules/gdrive/install.yml
+    - modules/gdrive/config.yml
+
+  - name: abc
+    type: includes
+    includes:
+    - modules/abc/install.yml
+
+  - name: heroku
+    type: includes
+    includes:
+    - modules/heroku/install.yml
 
   # Put your custom actions before this comment
+
+  - name: verify-extensions
+    type: includes
+    includes:
+    - modules/checks/extensions.yml
 
   - name: set-image-name-abroot
     type: includes
@@ -139,7 +177,7 @@ stages:
         commands:
           - rm -rf /FsGuard
           - rm -f ./minisign.pub ./minisign.key
-          - chmod +x /usr/sbin/init
+          - 'if [ -f /usr/share/init.d/010-fsguard.sh ]; then chmod +x /usr/share/init.d/010-fsguard.sh; else chmod +x /usr/sbin/init; fi'
 
   - name: cleanup2
     type: shell

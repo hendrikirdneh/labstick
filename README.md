@@ -19,7 +19,7 @@ If you are installing Vanilla OS, select the installation option to use a custom
 ## Modifying the Image
 
 > [!NOTE]
-> If you want to use NVIDIA drivers, you need to change the base image in the recipe.yml from desktop:main to nvidia:main.
+> If you want to use NVIDIA drivers, you need to change the base image in the recipe.yml from gnome:latest to nvidia:latest.
 
 - Go to **Settings → Actions → General** and ensure "_Allow all actions and reusable workflows_" are enabled.
 - Open the `vib-build.yml` workflow file and replace the custom image name with an image name of your choosing in line 14.

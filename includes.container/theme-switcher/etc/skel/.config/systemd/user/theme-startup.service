@@ -5,7 +5,7 @@ PartOf=graphical-session.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/theme-switch auto
+ExecStart=/usr/bin/theme-switch auto
 
 [Install]
 WantedBy=graphical-session.target

@@ -10,7 +10,7 @@
 # Or press ^Xd at the zsh prompt to dismiss the last tip,
 #           ^Xu to unsubscribe (creates ~/.local/share/vib/disabled).
 
-TIPS_DB="${VIB_TIPS_DB:-/usr/local/share/vib/tips.tsv}"
+TIPS_DB="${VIB_TIPS_DB:-/usr/share/vib/tips.tsv}"
 VIB_STATE="${XDG_DATA_HOME:-$HOME/.local/share}/vib"
 DISMISSED_FILE="$VIB_STATE/dismissed-tips"
 DISABLED_FILE="$VIB_STATE/disabled"

@@ -35,5 +35,5 @@ FONT_URL=$(curl -s https://api.github.com/repos/ryanoasis/nerd-fonts/releases/la
 curl $FONT_URL -fLo ./HeavyData.tar.xz
 tar -xf HeavyData.tar.xz
 rm HeavyData.tar.xz
-mv -f /nerdfonts/* /usr/local/share/fonts/
+mv -f /nerdfonts/* /usr/share/fonts/
 fc-cache -f -v

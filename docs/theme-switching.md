@@ -17,7 +17,7 @@ All four apps — GNOME Shell, kitty, Neovim, Emacs — switch atomically each t
 
 ## The `theme-switch` Script
 
-**Location:** `/usr/local/bin/theme-switch`
+**Location:** `/usr/bin/theme-switch`
 
 ```
 theme-switch [day|night|auto]
@@ -35,8 +35,16 @@ The script is idempotent — running it repeatedly in the same mode is safe.
 
 1. **GNOME** — calls `gsettings set org.gnome.desktop.interface color-scheme` and `accent-color`.  GNOME automatically picks `picture-uri` (day wallpaper) or `picture-uri-dark` (night wallpaper) to match.
 2. **kitty** — copies `~/.config/kitty/tokyonight-day.conf` or `~/.config/kitty/tokyonight.conf` over `~/.config/kitty/current-theme.conf`, then sends `SIGUSR1` to every running kitty process to reload the config.
-3. **Neovim** — iterates all nvim server sockets under `$XDG_RUNTIME_DIR` and `/tmp`, sending `:set background=light` or `:set background=dark` to each.
-4. **Emacs** — calls `emacsclient --eval "(change-theme-to-light)"` or `"(change-theme-to-dark)"`.
+3. **ddterm** — writes `foreground-color`, `background-color` and the 16-colour `palette` under `/com/github/amezin/ddterm/`.  ddterm repaints open terminals as the keys change.
+4. **oh-my-posh** — copies `~/.config/oh-my-posh/config-day.json` or `config-night.json` over `config.json`.  oh-my-posh re-reads its config on every prompt, so running shells repaint at the next prompt.
+5. **Claude Code** — rewrites `~/.claude/themes/labstick.json`.  Claude Code draws its own input box, dim hints and diff highlighting, and defaults to `dark`, which is unreadable on a light terminal.  The `theme` setting is pointed once at `custom:labstick` and then left alone; the theme file carries the mode in its `base` field.  A theme's slug is its filename, hence `themes/labstick.json` → `custom:labstick`.
+
+   A session that is already running keeps whatever it started with — the themes directory is watched, but the switch does not reach a live session.  New sessions come up in the current mode.  Writing the mode into the theme file rather than into the `theme` setting is what keeps `settings.json` constant, so a `~/.claude` kept under version control is not dirtied twice a day.
+
+   The theme overrides one colour: `userMessageBackground`, the background behind a submitted message, set to GNOME's `accent_bg_color` for the current accent so it matches the desktop in both modes.  There is no theme key for that element's text colour — the box sets only a background and the text follows the base theme, so it is white-ish on the accent in dark mode and dark in light mode.  Contrast against slate `#6f8396` is 4.0:1 white and 5.3:1 black, so both are legible.
+6. **Mode marker** — writes `day` or `night` to `$XDG_STATE_HOME/theme-mode` (`~/.local/state/theme-mode`).  Anything that renders its own colours can read one file instead of querying GNOME on every redraw; the Claude Code status line does exactly that.
+7. **Neovim** — iterates all nvim server sockets under `$XDG_RUNTIME_DIR` and `/tmp`, sending `:set background=light` or `:set background=dark` to each.
+8. **Emacs** — calls `emacsclient --eval "(change-theme-to-light)"` or `"(change-theme-to-dark)"`.
 
 Apps that are not running are silently skipped.
 
@@ -86,6 +94,23 @@ picture-uri-dark='file:///usr/share/backgrounds/tokyonight.jpg'
 
 GNOME Shell reads `picture-uri` when `color-scheme` is `prefer-light` and `picture-uri-dark` when it is `prefer-dark`.  The theme-switch script only needs to change `color-scheme`; the wallpaper follows automatically.
 
+These are dconf *defaults*.  A user who has ever picked a wallpaper in Settings has both keys set in their own database, which shadows the defaults and pins one image across both modes.  `gsettings reset org.gnome.desktop.background picture-uri picture-uri-dark` puts such a user back on the image defaults.
+
+### Shell themes
+
+Since GNOME 47 the stock shell stylesheet ships light and dark variants and picks one from `color-scheme`, so the top bar and menus follow the switch on their own.  The image overrides two things on top of that, through a pair of user shell themes in `/usr/share/themes/`:
+
+| | LabDay | LabNight |
+|---|---|---|
+| Base | `gnome-shell-light.css` | `gnome-shell-dark.css` |
+| `#panel` | transparent | transparent |
+| Popover shell, modal dialogs | `#f3eee2` (stock `#fafafb`) | `#24283b` (stock `#36363a`) |
+| Cards: quick toggles, calendar, notifications | `#fbf8f1` (stock `#ffffff`) | `#2f3449` (stock `#47474c`) |
+
+The transparent panel lets the wallpaper through instead of laying a bar over it.  The menu surfaces move off GNOME's neutral white and grey — warm sand by day to sit with the sunrise wallpaper, Tokyo Night by night to match kitty and ddterm — keeping stock's relationship of lighter cards on a darker popover shell.
+
+`theme-switch` sets `org.gnome.shell.extensions.user-theme name` to the right one, and enables the User Themes extension first, since a user whose own `enabled-extensions` list predates the image default will not have it on.  A single fixed shell theme would hold the panel and menus at one colour in both modes, which is why there is a pair rather than one.
+
 ### Wallpapers
 
 | File | Photo | Mode |
@@ -93,7 +118,7 @@ GNOME Shell reads `picture-uri` when `color-scheme` is `prefer-light` and `pictu
 | `/usr/share/backgrounds/tokyo-day.jpg` | clement-souchet — Tokyo Tower at sunrise (Unsplash `FVK-lpEc-Bc`) | day |
 | `/usr/share/backgrounds/tokyonight.jpg` | night cityscape (Unsplash `H4uGE2skayY`) | night |
 
-Both are downloaded at image build time and also placed in `~/Pictures/` for each user.
+Both files are committed under `includes.container/usr/share/backgrounds/` and copied verbatim into the image.
 
 ---
 
@@ -115,6 +140,8 @@ include current-theme.conf
 
 `current-theme.conf` is initialised to the dark theme at image build time.  `theme-switch` replaces its contents and reloads kitty with `pkill -USR1 kitty`.
 
+`skel-sync` copies `/etc/skel` into a home directory with `rsync --ignore-existing`, so a `~/.config/kitty/kitty.conf` that predates the switcher is never updated and keeps whatever `include` line it had.  If kitty ignores the switch, check that its last line reads `include current-theme.conf` and not `include tokyonight.conf`.
+
 ### Tokyo Night Day palette
 
 Derived directly from `folke/tokyonight.nvim` `day` style.
@@ -133,6 +160,29 @@ Derived directly from `folke/tokyonight.nvim` `day` style.
 | Cursor | `#3760bf` |
 
 ---
+
+## ddterm and the Prompt
+
+ddterm and oh-my-posh both used to carry a single hardcoded dark palette, so they stayed dark through the day.
+
+**ddterm** stores colours in dconf under `/com/github/amezin/ddterm/`.  `includes.container/etc/dconf/db/local.d/00-ddterm` supplies the initial (night) palette and the font; `theme-switch` writes user-level keys for the current mode, which shadow those defaults from the first switch onward.  The day palette is the same Tokyo Night Day set kitty uses, converted to ddterm's `rgb(r,g,b)` form.
+
+**oh-my-posh** keeps the same layout in both variants and differs only in colour.  The day file replaces the pale pastels, which are unreadable on `#e1e2e7`:
+
+| Segment | Night | Day |
+|---------|-------|-----|
+| session (`user on host`) | `#ffbebc` | `#f52a65` |
+| inline words (`on`, `at`, `MEM:`) | `#ffffff` | `#6172b0` |
+| time | `#bc93ff` | `#9854f1` |
+| git | `#ee79d1` | `#b15c00` |
+| path | `#ffafd2` | `#2e7de9` |
+| execution time, sysinfo, status | `#94ffa2` / `#a9ffb4` | `#587539` |
+| python | `#fffd82` | `#8c6c3e` |
+| status on error | `#ef5350` | `#f52a65` |
+
+## Terminal Fonts
+
+kitty, ddterm and GNOME's `monospace-font-name` are all set to `MesloLGL Nerd Font 11` so a terminal looks the same whichever one opens it, and so Claude Code — which has no font of its own and inherits the terminal's — does too.
 
 ## Neovim
 
@@ -252,36 +302,40 @@ These match the Tokyo Night dark background (`#1a1b26`) and foreground (`#a9b1d6
 
 ## Adding More Wallpapers
 
-The project root contains reference photos from Unsplash whose filenames encode the photo ID and author:
+The repository keeps a few reference photos from Unsplash at the project root, with the photo ID and author in the filename:
 
 ```
-clement-souchet-FVK-lpEc-Bc-unsplash.jpg   ← current day wallpaper
 tobias-wilden-bNeYImiDDbw-unsplash.jpg
 graham-powell-wood-GqWwKK_Ps_A-unsplash.jpg
 sam-lau-hJnXMWAZsBs-unsplash.jpg
 leo-segundo-d7Q7up8OGZQ-unsplash.jpg
 ```
 
-To switch the day wallpaper to a different photo, update the `wget` line in `modules/gnome/config.yml` with the new photo ID, and update `picture-uri` in `includes.container/etc/dconf/db/local.d/00-lab-defaults` to point to the new filename.
+To use one as the day wallpaper, copy it to `includes.container/usr/share/backgrounds/tokyo-day.jpg`, or add it under a new name there and point `picture-uri` in `includes.container/etc/dconf/db/local.d/00-lab-defaults` at the new file.
 
----
+Wallpapers are committed rather than downloaded during the build. The build-time `wget` of the Unsplash URLs produced 0-byte files and did not fail the build, so the dconf defaults pointed at wallpapers that were not there.
 
 ## File Reference
 
 | Path | Role |
 |------|------|
-| `/usr/local/bin/theme-switch` | Main orchestration script |
+| `/usr/bin/theme-switch` | Main orchestration script |
 | `~/.config/systemd/user/theme-day.timer` | Fires at 08:00 |
 | `~/.config/systemd/user/theme-night.timer` | Fires at 20:00 |
 | `~/.config/systemd/user/theme-startup.service` | Fires on graphical session start |
 | `~/.config/kitty/tokyonight-day.conf` | Kitty day palette |
 | `~/.config/kitty/tokyonight.conf` | Kitty night palette |
 | `~/.config/kitty/current-theme.conf` | Active kitty palette (managed by `theme-switch`) |
+| `~/.config/oh-my-posh/config-day.json` | Prompt colours for day |
+| `~/.config/oh-my-posh/config-night.json` | Prompt colours for night |
+| `~/.config/oh-my-posh/config.json` | Active prompt config (managed by `theme-switch`) |
+| `~/.local/state/theme-mode` | Current mode, for tools that colour themselves |
+| `includes.container/etc/dconf/db/local.d/00-ddterm` | ddterm defaults (initial palette and font) |
 | `~/.config/nvim/lua/config/options.lua` | Detects GNOME scheme at nvim startup |
 | `~/.config/nvim/lua/plugins/tokyonight.lua` | Responds to `background` option changes |
 | `~/.emacs.d/private/themes/tokyo-night-day-theme.el` | Custom Emacs day theme |
 | `/usr/share/backgrounds/tokyo-day.jpg` | Day wallpaper (system-wide) |
 | `/usr/share/backgrounds/tokyonight.jpg` | Night wallpaper (system-wide) |
 | `includes.container/etc/dconf/db/local.d/00-lab-defaults` | GNOME dconf defaults |
+| `includes.container/usr/share/backgrounds/` | Both wallpapers, copied into the image |
 | `modules/theme-switcher/config.yml` | Build-time setup for theme-switcher |
-| `modules/gnome/config.yml` | Downloads both wallpapers at build time |
